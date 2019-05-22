@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"text/scanner"
+	"unicode"
 
 	"holang/pkg/token"
 )
@@ -13,6 +14,7 @@ import (
 type Token struct {
 	Type     token.Token
 	Position scanner.Position
+	Value    string
 }
 
 func Tokenize(reader io.Reader, filepath string) []Token {
@@ -28,6 +30,7 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 			break
 		}
 		var t Token
+
 		tt := s.TokenText()
 		switch tt {
 
@@ -37,11 +40,6 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 			t = Token{Type: token.POW, Position: s.Position}
 		case "**=":
 			t = Token{Type: token.POW_ASSIGN, Position: s.Position}
-
-		case "<":
-			t = Token{Type: token.LCHEVR, Position: s.Position}
-		case ">":
-			t = Token{Type: token.RCHEVR, Position: s.Position}
 
 		case "enum":
 			t = Token{Type: token.ENUM, Position: s.Position}
@@ -111,6 +109,10 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 
 		case "==":
 			t = Token{Type: gotoken.EQL, Position: s.Position}
+		case "<":
+			t = Token{Type: gotoken.LSS, Position: s.Position}
+		case ">":
+			t = Token{Type: gotoken.GTR, Position: s.Position}
 		case "=":
 			t = Token{Type: gotoken.ASSIGN, Position: s.Position}
 		case "!":
@@ -201,11 +203,251 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 			t = Token{Type: gotoken.VAR, Position: s.Position}
 
 		default:
-			log.Print(fmt.Errorf("Unsupported at %s: %s\n", s.Position, s.TokenText()))
+			switch {
+			case isFloat(tt):
+				t = Token{Type: gotoken.FLOAT, Position: s.Position}
+			case isIdent(tt):
+				t = Token{Type: gotoken.IDENT, Position: s.Position}
+			case isImag(tt):
+				t = Token{Type: gotoken.IMAG, Position: s.Position}
+			case isIntLit(tt):
+				t = Token{Type: gotoken.INT, Position: s.Position}
+			case isRuneLit(tt):
+				t = Token{Type: gotoken.CHAR, Position: s.Position}
+			case isStringLit(tt):
+				t = Token{Type: gotoken.STRING, Position: s.Position}
+			default:
+				log.Print(fmt.Errorf("%s: %s\n", s.Position, s.TokenText()))
+			}
 		}
 
+		t.Value = tt
 		tokens = append(tokens, t)
 	}
 
 	return tokens
+}
+
+func isFloat(s string) bool {
+	return false
+}
+
+func isImag(s string) bool {
+	return false
+}
+
+func isIdent(s string) bool {
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !isLetter(r) {
+				return false
+			}
+		default:
+			if !(isLetter(r) || isUnicodeDigit(r)) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isIntLit(s string) bool {
+	return isBinaryLit(s) || isOctalLit(s) || isDecimalLit(s) || isHexLit(s)
+}
+
+func isBinaryLit(s string) bool {
+	valid := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r == '0') {
+				return false
+			}
+		case 1:
+			if !(r == 'b' || r == 'B') {
+				return false
+			}
+		default:
+			if !isBinaryDigit(r) {
+				return false
+			}
+			valid = true
+		}
+	}
+	return valid
+}
+
+func isOctalLit(s string) bool {
+	valid := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r == '0') {
+				return false
+			}
+			valid = true
+		default:
+			if !isOctalDigit(r) {
+				return false
+			}
+		}
+	}
+	return valid
+}
+
+func isDecimalLit(s string) bool {
+	valid := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r >= '1' && r <= '9') {
+				return false
+			}
+			valid = true
+		default:
+			if !isDecimalDigit(r) {
+				return false
+			}
+		}
+	}
+	return valid
+}
+
+func isHexLit(s string) bool {
+	valid := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r == '0') {
+				return false
+			}
+		case 1:
+			if !(r == 'x' || r == 'X') {
+				return false
+			}
+		default:
+			if !isOctalDigit(r) {
+				return false
+			}
+			valid = true
+		}
+	}
+	return valid
+}
+
+func isStringLit(s string) bool {
+	return isRawStringLit(s) || isInterpretedStringLit(s)
+}
+
+func isRawStringLit(s string) bool {
+	terminated := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r == '`') {
+				return false
+			}
+		default:
+			if r == '`' {
+				if terminated {
+					return false
+				}
+				terminated = true
+			} else if !(isUnicodeChar(r) || isNewline(r)) {
+				return false
+			}
+		}
+	}
+	return terminated
+}
+
+func isInterpretedStringLit(s string) bool {
+	terminated := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r == '"') {
+				return false
+			}
+		default:
+			if r == '"' {
+				if terminated {
+					return false
+				}
+				terminated = true
+			} else if !(isUnicodeValue(r) || isByteValue(r)) {
+				return false
+			}
+		}
+	}
+	return terminated
+}
+
+func isRuneLit(s string) bool {
+	terminated := false
+	for i, r := range s {
+		switch i {
+		case 0:
+			if !(r == '\'') {
+				return false
+			}
+		default:
+			if r == '\'' {
+				if terminated {
+					return false
+				}
+				terminated = true
+			} else if !(isUnicodeValue(r) || isByteValue(r)) {
+				return false
+			}
+		}
+	}
+	return terminated
+}
+
+// TODO
+func isUnicodeValue(r rune) bool {
+	return true
+}
+
+// TODO
+func isByteValue(r rune) bool {
+	return true
+}
+
+func isLetter(r rune) bool {
+	return isUnicodeLetter(r) || r == '_'
+}
+
+func isBinaryDigit(r rune) bool {
+	return r >= '0' && r <= '1'
+}
+
+func isOctalDigit(r rune) bool {
+	return r >= '0' && r <= '7'
+}
+
+func isDecimalDigit(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
+func isHexDigit(r rune) bool {
+	return isDecimalDigit(r) || (r >= 'A' && r <= 'F') || (r >= 'a' && r <= 'f')
+}
+
+func isUnicodeChar(r rune) bool {
+	return !isNewline(r)
+}
+
+func isUnicodeDigit(r rune) bool {
+	return unicode.IsDigit(r)
+}
+
+func isUnicodeLetter(r rune) bool {
+	return unicode.IsLetter(r)
+}
+
+func isNewline(r rune) bool {
+	return r == '\n'
 }

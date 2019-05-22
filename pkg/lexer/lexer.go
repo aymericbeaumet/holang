@@ -2,121 +2,18 @@ package lexer
 
 import (
 	"fmt"
+	gotoken "go/token"
 	"io"
 	"log"
 	"text/scanner"
+
+	"holang/pkg/token"
 )
 
 type Token struct {
-	Type     TokenType
+	Type     token.Token
 	Position scanner.Position
 }
-
-type TokenType int
-
-// Inspiration: https://golang.org/pkg/go/token/#Token
-const (
-	// Special tokens
-	ILLEGAL TokenType = iota
-	EOF
-	COMMENT
-
-	// Identifiers and basic type literals
-	// (these tokens stand for classes of literals)
-	IDENT  // main
-	INT    // 12345
-	FLOAT  // 123.45
-	IMAG   // 123.45i
-	CHAR   // 'a'
-	STRING // "abc"
-
-	// Operators and delimiters
-	ADD // +
-	SUB // -
-	MUL // *
-	QUO // /
-	REM // %
-	POW // **
-
-	AND     // &
-	OR      // |
-	XOR     // ^
-	SHL     // <<
-	SHR     // >>
-	AND_NOT // &^
-
-	ADD_ASSIGN // +=
-	SUB_ASSIGN // -=
-	MUL_ASSIGN // *=
-	QUO_ASSIGN // /=
-	REM_ASSIGN // %=
-	POW_ASSIGN // **=
-
-	AND_ASSIGN     // &=
-	OR_ASSIGN      // |=
-	XOR_ASSIGN     // ^=
-	SHL_ASSIGN     // <<=
-	SHR_ASSIGN     // >>=
-	AND_NOT_ASSIGN // &^=
-
-	LAND  // &&
-	LOR   // ||
-	ARROW // <-
-	INC   // ++
-	DEC   // --
-
-	EQL    // ==
-	ASSIGN // =
-	NOT    // !
-
-	NEQ      // !=
-	LEQ      // <=
-	GEQ      // >=
-	DEFINE   // :=
-	ELLIPSIS // ...
-
-	LPAREN // (
-	LBRACK // [
-	LBRACE // {
-	LCHEVR // <
-	COMMA  // ,
-	PERIOD // .
-
-	RPAREN    // )
-	RBRACK    // ]
-	RBRACE    // }
-	RCHEVR    // >
-	SEMICOLON // ;
-	COLON     // :
-
-	// Keywords
-	BREAK
-	CASE
-	CHAN
-	CONST
-	CONTINUE
-	DEFAULT
-	DEFER
-	ELSE
-	ENUM
-	FALLTHROUGH
-	FOR
-	FUNC
-	GO
-	GOTO
-	IF
-	IMPORT
-	INTERFACE
-	MAP
-	PACKAGE
-	RANGE
-	RETURN
-	SELECT
-	STRUCT
-	SWITCH
-	TYPE
-	VAR
-)
 
 func Tokenize(reader io.Reader, filepath string) []Token {
 	tokens := []Token{}
@@ -126,179 +23,188 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 	s.Filename = filepath
 
 	for {
-		t := s.Scan()
-		if t == scanner.EOF {
+		lexeme := s.Scan()
+		if lexeme == scanner.EOF {
 			break
 		}
-		var token Token
+		var t Token
 		tt := s.TokenText()
 		switch tt {
 
-		case "+":
-			token = Token{Type: ADD, Position: s.Position}
-		case "-":
-			token = Token{Type: SUB, Position: s.Position}
-		case "*":
-			token = Token{Type: MUL, Position: s.Position}
-		case "/":
-			token = Token{Type: QUO, Position: s.Position}
-		case "%":
-			token = Token{Type: REM, Position: s.Position}
+		// Holang
+
 		case "**":
-			token = Token{Type: POW, Position: s.Position}
+			t = Token{Type: token.POW, Position: s.Position}
+		case "**=":
+			t = Token{Type: token.POW_ASSIGN, Position: s.Position}
+
+		case "<":
+			t = Token{Type: token.LCHEVR, Position: s.Position}
+		case ">":
+			t = Token{Type: token.RCHEVR, Position: s.Position}
+
+		case "enum":
+			t = Token{Type: token.ENUM, Position: s.Position}
+		case "match":
+			t = Token{Type: token.MATCH, Position: s.Position}
+
+		// Golang
+
+		case "+":
+			t = Token{Type: gotoken.ADD, Position: s.Position}
+		case "-":
+			t = Token{Type: gotoken.SUB, Position: s.Position}
+		case "*":
+			t = Token{Type: gotoken.MUL, Position: s.Position}
+		case "/":
+			t = Token{Type: gotoken.QUO, Position: s.Position}
+		case "%":
+			t = Token{Type: gotoken.REM, Position: s.Position}
 
 		case "&":
-			token = Token{Type: AND, Position: s.Position}
+			t = Token{Type: gotoken.AND, Position: s.Position}
 		case "|":
-			token = Token{Type: OR, Position: s.Position}
+			t = Token{Type: gotoken.OR, Position: s.Position}
 		case "^":
-			token = Token{Type: XOR, Position: s.Position}
+			t = Token{Type: gotoken.XOR, Position: s.Position}
 		case "<<":
-			token = Token{Type: SHL, Position: s.Position}
+			t = Token{Type: gotoken.SHL, Position: s.Position}
 		case ">>":
-			token = Token{Type: SHR, Position: s.Position}
+			t = Token{Type: gotoken.SHR, Position: s.Position}
 		case "&^":
-			token = Token{Type: AND_NOT, Position: s.Position}
+			t = Token{Type: gotoken.AND_NOT, Position: s.Position}
 
 		case "+=":
-			token = Token{Type: ADD_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.ADD_ASSIGN, Position: s.Position}
 		case "-=":
-			token = Token{Type: SUB_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.SUB_ASSIGN, Position: s.Position}
 		case "*=":
-			token = Token{Type: MUL_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.MUL_ASSIGN, Position: s.Position}
 		case "/=":
-			token = Token{Type: QUO_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.QUO_ASSIGN, Position: s.Position}
 		case "%=":
-			token = Token{Type: REM_ASSIGN, Position: s.Position}
-		case "**=":
-			token = Token{Type: POW_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.REM_ASSIGN, Position: s.Position}
 
 		case "&=":
-			token = Token{Type: AND_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.AND_ASSIGN, Position: s.Position}
 		case "|=":
-			token = Token{Type: OR_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.OR_ASSIGN, Position: s.Position}
 		case "^=":
-			token = Token{Type: XOR_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.XOR_ASSIGN, Position: s.Position}
 		case "<<=":
-			token = Token{Type: SHL_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.SHL_ASSIGN, Position: s.Position}
 		case ">>=":
-			token = Token{Type: SHR_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.SHR_ASSIGN, Position: s.Position}
 		case "&^=":
-			token = Token{Type: AND_NOT_ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.AND_NOT_ASSIGN, Position: s.Position}
 
 		case "&&":
-			token = Token{Type: LAND, Position: s.Position}
+			t = Token{Type: gotoken.LAND, Position: s.Position}
 		case "||":
-			token = Token{Type: LOR, Position: s.Position}
+			t = Token{Type: gotoken.LOR, Position: s.Position}
 		case "<-":
-			token = Token{Type: ARROW, Position: s.Position}
+			t = Token{Type: gotoken.ARROW, Position: s.Position}
 		case "++":
-			token = Token{Type: INC, Position: s.Position}
+			t = Token{Type: gotoken.INC, Position: s.Position}
 		case "--":
-			token = Token{Type: DEC, Position: s.Position}
+			t = Token{Type: gotoken.DEC, Position: s.Position}
 
 		case "==":
-			token = Token{Type: EQL, Position: s.Position}
+			t = Token{Type: gotoken.EQL, Position: s.Position}
 		case "=":
-			token = Token{Type: ASSIGN, Position: s.Position}
+			t = Token{Type: gotoken.ASSIGN, Position: s.Position}
 		case "!":
-			token = Token{Type: NOT, Position: s.Position}
+			t = Token{Type: gotoken.NOT, Position: s.Position}
 
 		case "!=":
-			token = Token{Type: NEQ, Position: s.Position}
+			t = Token{Type: gotoken.NEQ, Position: s.Position}
 		case "<=":
-			token = Token{Type: LEQ, Position: s.Position}
+			t = Token{Type: gotoken.LEQ, Position: s.Position}
 		case ">=":
-			token = Token{Type: GEQ, Position: s.Position}
+			t = Token{Type: gotoken.GEQ, Position: s.Position}
 		case ":=":
-			token = Token{Type: DEFINE, Position: s.Position}
+			t = Token{Type: gotoken.DEFINE, Position: s.Position}
 		case "...":
-			token = Token{Type: ELLIPSIS, Position: s.Position}
+			t = Token{Type: gotoken.ELLIPSIS, Position: s.Position}
 
 		case "(":
-			token = Token{Type: LPAREN, Position: s.Position}
+			t = Token{Type: gotoken.LPAREN, Position: s.Position}
 		case "[":
-			token = Token{Type: LBRACK, Position: s.Position}
+			t = Token{Type: gotoken.LBRACK, Position: s.Position}
 		case "{":
-			token = Token{Type: LBRACE, Position: s.Position}
-		case "<":
-			token = Token{Type: LCHEVR, Position: s.Position}
+			t = Token{Type: gotoken.LBRACE, Position: s.Position}
 		case ",":
-			token = Token{Type: COMMA, Position: s.Position}
+			t = Token{Type: gotoken.COMMA, Position: s.Position}
 		case ".":
-			token = Token{Type: PERIOD, Position: s.Position}
+			t = Token{Type: gotoken.PERIOD, Position: s.Position}
 
 		case ")":
-			token = Token{Type: RPAREN, Position: s.Position}
+			t = Token{Type: gotoken.RPAREN, Position: s.Position}
 		case "]":
-			token = Token{Type: RBRACK, Position: s.Position}
+			t = Token{Type: gotoken.RBRACK, Position: s.Position}
 		case "}":
-			token = Token{Type: RBRACE, Position: s.Position}
-		case ">":
-			token = Token{Type: RCHEVR, Position: s.Position}
+			t = Token{Type: gotoken.RBRACE, Position: s.Position}
 		case ";":
-			token = Token{Type: SEMICOLON, Position: s.Position}
+			t = Token{Type: gotoken.SEMICOLON, Position: s.Position}
 		case ":":
-			token = Token{Type: COLON, Position: s.Position}
+			t = Token{Type: gotoken.COLON, Position: s.Position}
 
 		case "break":
-			token = Token{Type: BREAK, Position: s.Position}
+			t = Token{Type: gotoken.BREAK, Position: s.Position}
 		case "case":
-			token = Token{Type: CASE, Position: s.Position}
+			t = Token{Type: gotoken.CASE, Position: s.Position}
 		case "chan":
-			token = Token{Type: CHAN, Position: s.Position}
+			t = Token{Type: gotoken.CHAN, Position: s.Position}
 		case "const":
-			token = Token{Type: CONST, Position: s.Position}
+			t = Token{Type: gotoken.CONST, Position: s.Position}
 		case "continue":
-			token = Token{Type: CONTINUE, Position: s.Position}
+			t = Token{Type: gotoken.CONTINUE, Position: s.Position}
 		case "default":
-			token = Token{Type: DEFAULT, Position: s.Position}
+			t = Token{Type: gotoken.DEFAULT, Position: s.Position}
 		case "defer":
-			token = Token{Type: DEFER, Position: s.Position}
+			t = Token{Type: gotoken.DEFER, Position: s.Position}
 		case "else":
-			token = Token{Type: ELSE, Position: s.Position}
-		case "enum":
-			token = Token{Type: ENUM, Position: s.Position}
+			t = Token{Type: gotoken.ELSE, Position: s.Position}
 		case "fallthrough":
-			token = Token{Type: FALLTHROUGH, Position: s.Position}
+			t = Token{Type: gotoken.FALLTHROUGH, Position: s.Position}
 		case "for":
-			token = Token{Type: FOR, Position: s.Position}
+			t = Token{Type: gotoken.FOR, Position: s.Position}
 		case "func":
-			token = Token{Type: FUNC, Position: s.Position}
+			t = Token{Type: gotoken.FUNC, Position: s.Position}
 		case "go":
-			token = Token{Type: GO, Position: s.Position}
+			t = Token{Type: gotoken.GO, Position: s.Position}
 		case "goto":
-			token = Token{Type: GOTO, Position: s.Position}
+			t = Token{Type: gotoken.GOTO, Position: s.Position}
 		case "if":
-			token = Token{Type: IF, Position: s.Position}
+			t = Token{Type: gotoken.IF, Position: s.Position}
 		case "import":
-			token = Token{Type: IMPORT, Position: s.Position}
+			t = Token{Type: gotoken.IMPORT, Position: s.Position}
 		case "interface":
-			token = Token{Type: INTERFACE, Position: s.Position}
+			t = Token{Type: gotoken.INTERFACE, Position: s.Position}
 		case "map":
-			token = Token{Type: MAP, Position: s.Position}
+			t = Token{Type: gotoken.MAP, Position: s.Position}
 		case "package":
-			token = Token{Type: PACKAGE, Position: s.Position}
+			t = Token{Type: gotoken.PACKAGE, Position: s.Position}
 		case "range":
-			token = Token{Type: RANGE, Position: s.Position}
+			t = Token{Type: gotoken.RANGE, Position: s.Position}
 		case "return":
-			token = Token{Type: RETURN, Position: s.Position}
+			t = Token{Type: gotoken.RETURN, Position: s.Position}
 		case "select":
-			token = Token{Type: SELECT, Position: s.Position}
+			t = Token{Type: gotoken.SELECT, Position: s.Position}
 		case "struct":
-			token = Token{Type: STRUCT, Position: s.Position}
+			t = Token{Type: gotoken.STRUCT, Position: s.Position}
 		case "switch":
-			token = Token{Type: SWITCH, Position: s.Position}
+			t = Token{Type: gotoken.SWITCH, Position: s.Position}
 		case "type":
-			token = Token{Type: TYPE, Position: s.Position}
+			t = Token{Type: gotoken.TYPE, Position: s.Position}
 		case "var":
-			token = Token{Type: VAR, Position: s.Position}
+			t = Token{Type: gotoken.VAR, Position: s.Position}
 
 		default:
 			log.Print(fmt.Errorf("Unsupported at %s: %s\n", s.Position, s.TokenText()))
 		}
 
-		tokens = append(tokens, token)
+		tokens = append(tokens, t)
 	}
 
 	return tokens

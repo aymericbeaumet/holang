@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"fmt"
 	gotoken "go/token"
 	"io"
 	"log"
@@ -25,207 +24,254 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 	s.Filename = filepath
 
 	for {
-		lexeme := s.Scan()
-		if lexeme == scanner.EOF {
-			break
-		}
-		var t Token
-
-		tt := s.TokenText()
-		switch tt {
-
-		// Holang
-
-		case "**":
-			t = Token{Type: token.POW, Position: s.Position}
-		case "**=":
-			t = Token{Type: token.POW_ASSIGN, Position: s.Position}
-
-		case "enum":
-			t = Token{Type: token.ENUM, Position: s.Position}
-		case "match":
-			t = Token{Type: token.MATCH, Position: s.Position}
-
-		// Golang
-
-		case "+":
-			t = Token{Type: gotoken.ADD, Position: s.Position}
-		case "-":
-			t = Token{Type: gotoken.SUB, Position: s.Position}
-		case "*":
-			t = Token{Type: gotoken.MUL, Position: s.Position}
-		case "/":
-			t = Token{Type: gotoken.QUO, Position: s.Position}
-		case "%":
-			t = Token{Type: gotoken.REM, Position: s.Position}
-
-		case "&":
-			t = Token{Type: gotoken.AND, Position: s.Position}
-		case "|":
-			t = Token{Type: gotoken.OR, Position: s.Position}
-		case "^":
-			t = Token{Type: gotoken.XOR, Position: s.Position}
-		case "<<":
-			t = Token{Type: gotoken.SHL, Position: s.Position}
-		case ">>":
-			t = Token{Type: gotoken.SHR, Position: s.Position}
-		case "&^":
-			t = Token{Type: gotoken.AND_NOT, Position: s.Position}
-
-		case "+=":
-			t = Token{Type: gotoken.ADD_ASSIGN, Position: s.Position}
-		case "-=":
-			t = Token{Type: gotoken.SUB_ASSIGN, Position: s.Position}
-		case "*=":
-			t = Token{Type: gotoken.MUL_ASSIGN, Position: s.Position}
-		case "/=":
-			t = Token{Type: gotoken.QUO_ASSIGN, Position: s.Position}
-		case "%=":
-			t = Token{Type: gotoken.REM_ASSIGN, Position: s.Position}
-
-		case "&=":
-			t = Token{Type: gotoken.AND_ASSIGN, Position: s.Position}
-		case "|=":
-			t = Token{Type: gotoken.OR_ASSIGN, Position: s.Position}
-		case "^=":
-			t = Token{Type: gotoken.XOR_ASSIGN, Position: s.Position}
-		case "<<=":
-			t = Token{Type: gotoken.SHL_ASSIGN, Position: s.Position}
-		case ">>=":
-			t = Token{Type: gotoken.SHR_ASSIGN, Position: s.Position}
-		case "&^=":
-			t = Token{Type: gotoken.AND_NOT_ASSIGN, Position: s.Position}
-
-		case "&&":
-			t = Token{Type: gotoken.LAND, Position: s.Position}
-		case "||":
-			t = Token{Type: gotoken.LOR, Position: s.Position}
-		case "<-":
-			t = Token{Type: gotoken.ARROW, Position: s.Position}
-		case "++":
-			t = Token{Type: gotoken.INC, Position: s.Position}
-		case "--":
-			t = Token{Type: gotoken.DEC, Position: s.Position}
-
-		case "==":
-			t = Token{Type: gotoken.EQL, Position: s.Position}
-		case "<":
-			t = Token{Type: gotoken.LSS, Position: s.Position}
-		case ">":
-			t = Token{Type: gotoken.GTR, Position: s.Position}
-		case "=":
-			t = Token{Type: gotoken.ASSIGN, Position: s.Position}
-		case "!":
-			t = Token{Type: gotoken.NOT, Position: s.Position}
-
-		case "!=":
-			t = Token{Type: gotoken.NEQ, Position: s.Position}
-		case "<=":
-			t = Token{Type: gotoken.LEQ, Position: s.Position}
-		case ">=":
-			t = Token{Type: gotoken.GEQ, Position: s.Position}
-		case ":=":
-			t = Token{Type: gotoken.DEFINE, Position: s.Position}
-		case "...":
-			t = Token{Type: gotoken.ELLIPSIS, Position: s.Position}
-
-		case "(":
-			t = Token{Type: gotoken.LPAREN, Position: s.Position}
-		case "[":
-			t = Token{Type: gotoken.LBRACK, Position: s.Position}
-		case "{":
-			t = Token{Type: gotoken.LBRACE, Position: s.Position}
-		case ",":
-			t = Token{Type: gotoken.COMMA, Position: s.Position}
-		case ".":
-			t = Token{Type: gotoken.PERIOD, Position: s.Position}
-
-		case ")":
-			t = Token{Type: gotoken.RPAREN, Position: s.Position}
-		case "]":
-			t = Token{Type: gotoken.RBRACK, Position: s.Position}
-		case "}":
-			t = Token{Type: gotoken.RBRACE, Position: s.Position}
-		case ";":
-			t = Token{Type: gotoken.SEMICOLON, Position: s.Position}
-		case ":":
-			t = Token{Type: gotoken.COLON, Position: s.Position}
-
-		case "break":
-			t = Token{Type: gotoken.BREAK, Position: s.Position}
-		case "case":
-			t = Token{Type: gotoken.CASE, Position: s.Position}
-		case "chan":
-			t = Token{Type: gotoken.CHAN, Position: s.Position}
-		case "const":
-			t = Token{Type: gotoken.CONST, Position: s.Position}
-		case "continue":
-			t = Token{Type: gotoken.CONTINUE, Position: s.Position}
-		case "default":
-			t = Token{Type: gotoken.DEFAULT, Position: s.Position}
-		case "defer":
-			t = Token{Type: gotoken.DEFER, Position: s.Position}
-		case "else":
-			t = Token{Type: gotoken.ELSE, Position: s.Position}
-		case "fallthrough":
-			t = Token{Type: gotoken.FALLTHROUGH, Position: s.Position}
-		case "for":
-			t = Token{Type: gotoken.FOR, Position: s.Position}
-		case "func":
-			t = Token{Type: gotoken.FUNC, Position: s.Position}
-		case "go":
-			t = Token{Type: gotoken.GO, Position: s.Position}
-		case "goto":
-			t = Token{Type: gotoken.GOTO, Position: s.Position}
-		case "if":
-			t = Token{Type: gotoken.IF, Position: s.Position}
-		case "import":
-			t = Token{Type: gotoken.IMPORT, Position: s.Position}
-		case "interface":
-			t = Token{Type: gotoken.INTERFACE, Position: s.Position}
-		case "map":
-			t = Token{Type: gotoken.MAP, Position: s.Position}
-		case "package":
-			t = Token{Type: gotoken.PACKAGE, Position: s.Position}
-		case "range":
-			t = Token{Type: gotoken.RANGE, Position: s.Position}
-		case "return":
-			t = Token{Type: gotoken.RETURN, Position: s.Position}
-		case "select":
-			t = Token{Type: gotoken.SELECT, Position: s.Position}
-		case "struct":
-			t = Token{Type: gotoken.STRUCT, Position: s.Position}
-		case "switch":
-			t = Token{Type: gotoken.SWITCH, Position: s.Position}
-		case "type":
-			t = Token{Type: gotoken.TYPE, Position: s.Position}
-		case "var":
-			t = Token{Type: gotoken.VAR, Position: s.Position}
-
+		t := readToken(&s)
+		switch t.Type {
+		case gotoken.EOF:
+			return tokens
+		case gotoken.ILLEGAL:
+			log.Println("warning: ", t)
+			continue
 		default:
-			switch {
-			case isFloat(tt):
-				t = Token{Type: gotoken.FLOAT, Position: s.Position}
-			case isIdent(tt):
-				t = Token{Type: gotoken.IDENT, Position: s.Position}
-			case isImag(tt):
-				t = Token{Type: gotoken.IMAG, Position: s.Position}
-			case isIntLit(tt):
-				t = Token{Type: gotoken.INT, Position: s.Position}
-			case isRuneLit(tt):
-				t = Token{Type: gotoken.CHAR, Position: s.Position}
-			case isStringLit(tt):
-				t = Token{Type: gotoken.STRING, Position: s.Position}
-			default:
-				log.Print(fmt.Errorf("%s: %s\n", s.Position, s.TokenText()))
-			}
+			tokens = append(tokens, t)
 		}
+	}
+}
 
-		t.Value = tt
-		tokens = append(tokens, t)
+func readToken(s *scanner.Scanner) Token {
+	v := ""
+
+	if s.Peek() == scanner.EOF {
+		return Token{Type: gotoken.EOF, Value: v}
 	}
 
-	return tokens
+	// TODO: literals
+
+	if s.Peek() == '+' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.ADD_ASSIGN, Value: v}
+		}
+		if s.Peek() == '+' {
+			v += string(s.Next())
+			return Token{Type: gotoken.INC, Value: v}
+		}
+		return Token{Type: gotoken.ADD, Value: v}
+	}
+
+	if s.Peek() == '-' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.SUB_ASSIGN, Value: v}
+		}
+		if s.Peek() == '-' {
+			v += string(s.Next())
+			return Token{Type: gotoken.DEC, Value: v}
+		}
+		return Token{Type: gotoken.SUB, Value: v}
+	}
+
+	if s.Peek() == '*' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.MUL_ASSIGN, Value: v}
+		}
+		if s.Peek() == '*' {
+			v += string(s.Next())
+			if s.Peek() == '=' {
+				v += string(s.Next())
+				return Token{Type: token.POW_ASSIGN, Value: v}
+			}
+			return Token{Type: token.POW, Value: v}
+		}
+		return Token{Type: gotoken.MUL, Value: v}
+	}
+
+	if s.Peek() == '/' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.QUO_ASSIGN, Value: v}
+		}
+		return Token{Type: gotoken.QUO, Value: v}
+	}
+
+	if s.Peek() == '%' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.REM_ASSIGN, Value: v}
+		}
+		return Token{Type: gotoken.REM, Value: v}
+	}
+
+	if s.Peek() == '&' {
+		v += string(s.Next())
+		if s.Peek() == '^' {
+			v += string(s.Next())
+			if s.Peek() == '=' {
+				v += string(s.Next())
+				return Token{Type: gotoken.AND_NOT_ASSIGN, Value: v}
+			}
+			return Token{Type: gotoken.AND_NOT, Value: v}
+		}
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.AND_ASSIGN, Value: v}
+		}
+		if s.Peek() == '&' {
+			v += string(s.Next())
+			return Token{Type: gotoken.LAND, Value: v}
+		}
+		return Token{Type: gotoken.AND, Value: v}
+	}
+
+	if s.Peek() == '|' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.OR_ASSIGN, Value: v}
+		}
+		if s.Peek() == '|' {
+			v += string(s.Next())
+			return Token{Type: gotoken.LOR, Value: v}
+		}
+		return Token{Type: gotoken.OR, Value: v}
+	}
+
+	if s.Peek() == '^' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.XOR_ASSIGN, Value: v}
+		}
+		return Token{Type: gotoken.XOR, Value: v}
+	}
+
+	if s.Peek() == '<' {
+		v += string(s.Next())
+		if s.Peek() == '<' {
+			v += string(s.Next())
+			if s.Peek() == '=' {
+				v += string(s.Next())
+				return Token{Type: gotoken.SHL_ASSIGN, Value: v}
+			}
+			return Token{Type: gotoken.SHL, Value: v}
+		}
+		if s.Peek() == '-' {
+			v += string(s.Next())
+			return Token{Type: gotoken.ARROW, Value: v}
+		}
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.LEQ, Value: v}
+		}
+		return Token{Type: gotoken.LSS, Value: v}
+	}
+
+	if s.Peek() == '>' {
+		v += string(s.Next())
+		if s.Peek() == '>' {
+			v += string(s.Next())
+			if s.Peek() == '=' {
+				v += string(s.Next())
+				return Token{Type: gotoken.SHR_ASSIGN, Value: v}
+			}
+			return Token{Type: gotoken.SHR, Value: v}
+		}
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.GEQ, Value: v}
+		}
+		return Token{Type: gotoken.GTR, Value: v}
+	}
+
+	if s.Peek() == '=' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.EQL, Value: v}
+		}
+		return Token{Type: gotoken.ASSIGN, Value: v}
+	}
+
+	if s.Peek() == '!' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.NEQ, Value: v}
+		}
+		return Token{Type: gotoken.NOT, Value: v}
+	}
+
+	if s.Peek() == ':' {
+		v += string(s.Next())
+		if s.Peek() == '=' {
+			v += string(s.Next())
+			return Token{Type: gotoken.DEFINE, Value: v}
+		}
+		return Token{Type: gotoken.COLON, Value: v}
+	}
+
+	if s.Peek() == '.' {
+		v += string(s.Next())
+		if s.Peek() == '.' {
+			v += string(s.Next())
+			if s.Peek() == '.' {
+				v += string(s.Next())
+				return Token{Type: gotoken.ELLIPSIS, Value: v}
+			}
+			return Token{Type: gotoken.ILLEGAL, Value: v}
+		}
+		return Token{Type: gotoken.PERIOD, Value: v}
+	}
+
+	if s.Peek() == '(' {
+		v += string(s.Next())
+		return Token{Type: gotoken.LPAREN, Value: v}
+	}
+
+	if s.Peek() == ')' {
+		v += string(s.Next())
+		return Token{Type: gotoken.RPAREN, Value: v}
+	}
+
+	if s.Peek() == '[' {
+		v += string(s.Next())
+		return Token{Type: gotoken.LBRACK, Value: v}
+	}
+
+	if s.Peek() == ']' {
+		v += string(s.Next())
+		return Token{Type: gotoken.RBRACK, Value: v}
+	}
+
+	if s.Peek() == '{' {
+		v += string(s.Next())
+		return Token{Type: gotoken.LBRACE, Value: v}
+	}
+
+	if s.Peek() == '}' {
+		v += string(s.Next())
+		return Token{Type: gotoken.RBRACE, Value: v}
+	}
+
+	if s.Peek() == ',' {
+		v += string(s.Next())
+		return Token{Type: gotoken.COMMA, Value: v}
+	}
+
+	if s.Peek() == ';' {
+		v += string(s.Next())
+		return Token{Type: gotoken.SEMICOLON, Value: v}
+	}
+
+	// TODO: keywords
+
+	v += string(s.Next())
+	return Token{Type: gotoken.ILLEGAL, Value: v}
 }
 
 func isFloat(s string) bool {

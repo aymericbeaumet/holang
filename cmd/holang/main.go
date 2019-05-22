@@ -2,8 +2,10 @@ package main
 
 import (
 	"errors"
-	"holang/pkg/lexer"
+	"log"
 	"os"
+
+	"holang/pkg/lexer"
 )
 
 func main() {
@@ -16,5 +18,6 @@ func main() {
 		panic(err)
 	}
 
-	lexer.Tokenize(reader, filepath)
+	tokens := lexer.Tokenize(reader, filepath)
+	log.Printf("%+v", tokens)
 }

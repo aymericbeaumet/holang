@@ -23,9 +23,42 @@ func Tokenize(reader io.Reader, filepath string) ([]Token, error) {
 	s.Init(reader)
 	s.Filename = filepath
 
+	asi := false // automatic semicolon insertion on upcoming newline?
 	for {
-		t := readToken(&s)
+		t := readToken(&s, asi)
+		asi = false
 		switch t.Type {
+		case gotoken.IDENT:
+			fallthrough
+		case gotoken.INT:
+			fallthrough
+		case gotoken.FLOAT:
+			fallthrough
+		case gotoken.IMAG:
+			fallthrough
+		case gotoken.CHAR:
+			fallthrough
+		case gotoken.STRING:
+			fallthrough
+		case gotoken.BREAK:
+			fallthrough
+		case gotoken.CONTINUE:
+			fallthrough
+		case gotoken.FALLTHROUGH:
+			fallthrough
+		case gotoken.RETURN:
+			fallthrough
+		case gotoken.INC:
+			fallthrough
+		case gotoken.DEC:
+			fallthrough
+		case gotoken.RPAREN:
+			fallthrough
+		case gotoken.RBRACK:
+			fallthrough
+		case gotoken.RBRACE:
+			asi = true
+			fallthrough
 		default:
 			tokens = append(tokens, t)
 		case gotoken.ILLEGAL:
@@ -36,11 +69,14 @@ func Tokenize(reader io.Reader, filepath string) ([]Token, error) {
 	}
 }
 
-func readToken(s *scanner.Scanner) Token {
+func readToken(s *scanner.Scanner, asi bool) Token {
 	v := []rune{}
 
 	for isWhitespace(s.Peek()) || isNewline(s.Peek()) {
-		s.Next()
+		cur := s.Next()
+		if asi && isNewline(cur) {
+			return Token{Type: gotoken.SEMICOLON}
+		}
 	}
 
 	if s.Peek() == scanner.EOF {

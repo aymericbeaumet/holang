@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"holang/pkg/lexer"
+	"holang/pkg/parser"
+	"holang/pkg/printer"
 )
 
 func main() {
@@ -24,5 +24,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	spew.Dump(tokens)
+
+	file, err := parser.ParseFile(tokens, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printer.FprintFile(os.Stdout, file)
 }

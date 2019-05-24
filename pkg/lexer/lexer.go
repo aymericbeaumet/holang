@@ -37,7 +37,7 @@ func Tokenize(reader io.Reader, filepath string) ([]Token, error) {
 }
 
 func readToken(s *scanner.Scanner) Token {
-	v := ""
+	v := []rune{}
 
 	for isWhitespace(s.Peek()) || isNewline(s.Peek()) {
 		s.Next()
@@ -47,409 +47,458 @@ func readToken(s *scanner.Scanner) Token {
 		return Token{Type: gotoken.EOF}
 	}
 
-	// TODO: decimal, floating, imaginary
-
-	if s.Peek() == '0' {
-		v += string(s.Next())
-		if s.Peek() == 'b' {
-			v += string(s.Next())
+	if isDecimalDigit(s.Peek()) || s.Peek() == '.' {
+		cur := s.Next()
+		v = append(v, cur)
+		// Binary notation 0b...
+		if cur == '0' && (s.Peek() == 'B' || s.Peek() == 'b') {
+			v = append(v, s.Next())
 			if isBinaryDigit(s.Peek()) {
-				v += string(s.Next())
-				for isBinaryDigit(s.Peek()) || s.Peek() == '_' {
-					v += string(s.Next())
+				v = append(v, s.Next())
+				for isBinaryDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+					v = append(v, s.Next())
 				}
-				return Token{Type: gotoken.INT, Value: v}
+				return Token{Type: gotoken.INT, Value: string(v)}
 			}
-			return Token{Type: gotoken.ILLEGAL, Value: v}
+			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
-		if isOctalDigit(s.Peek()) {
-			v += string(s.Next())
-			for isOctalDigit(s.Peek()) || s.Peek() == '_' {
-				v += string(s.Next())
-			}
-			return Token{Type: gotoken.INT, Value: v}
-		}
-		if s.Peek() == 'o' {
-			v += string(s.Next())
+		// Octal notation 0o...
+		if cur == '0' && (s.Peek() == 'O' || s.Peek() == 'o') {
+			v = append(v, s.Next())
 			if isOctalDigit(s.Peek()) {
-				v += string(s.Next())
-				for isOctalDigit(s.Peek()) || s.Peek() == '_' {
-					v += string(s.Next())
+				v = append(v, s.Next())
+				for isOctalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+					v = append(v, s.Next())
 				}
-				return Token{Type: gotoken.INT, Value: v}
+				return Token{Type: gotoken.INT, Value: string(v)}
 			}
-			return Token{Type: gotoken.ILLEGAL, Value: v}
+			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
-		if s.Peek() == 'x' {
-			v += string(s.Next())
+		// Hexadecimal notation 0x...
+		if cur == '0' && (s.Peek() == 'X' || s.Peek() == 'x') {
+			v = append(v, s.Next())
 			if isHexDigit(s.Peek()) {
-				v += string(s.Next())
-				for isHexDigit(s.Peek()) || s.Peek() == '_' {
-					v += string(s.Next())
+				v = append(v, s.Next())
+				for isHexDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+					v = append(v, s.Next())
 				}
-				return Token{Type: gotoken.INT, Value: v}
+				return Token{Type: gotoken.INT, Value: string(v)}
 			}
-			return Token{Type: gotoken.ILLEGAL, Value: v}
+			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
+		// Alternative octal notation 0...
+		if cur == '0' {
+			if isOctalDigit(s.Peek()) {
+				v = append(v, s.Next())
+				for isOctalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+					v = append(v, s.Next())
+				}
+			}
+			if !(isDecimalDigit(s.Peek()) || isDigitSeparator(s.Peek()) || s.Peek() == '.' || s.Peek() == 'i' || s.Peek() == 'E' || s.Peek() == 'e') {
+				return Token{Type: gotoken.INT, Value: string(v)}
+			}
+			// fallthrough
+		}
+		// Decimals, Floating-point, Imaginary
+		float := false
+		if isDecimalDigit(v[0]) {
+			for isDecimalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+				v = append(v, s.Next())
+			}
+		}
+		if (v[0] == '.' || s.Peek() == '.') && v[0] != s.Peek() {
+			float = true
+			if s.Peek() == '.' {
+				v = append(v, s.Next())
+			}
+			if isDecimalDigit(s.Peek()) {
+				v = append(v, s.Next())
+				for isDecimalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+					v = append(v, s.Next())
+				}
+			}
+		}
+		if s.Peek() == 'E' || s.Peek() == 'e' {
+			float = true
+			v = append(v, s.Next())
+			if s.Peek() == '+' || s.Peek() == '-' {
+				v = append(v, s.Next())
+			}
+			if isDecimalDigit(s.Peek()) {
+				v = append(v, s.Next())
+				for isDecimalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
+					v = append(v, s.Next())
+				}
+			}
+		}
+		if s.Peek() == 'i' {
+			v = append(v, s.Next())
+			return Token{Type: gotoken.IMAG, Value: string(v)}
+		}
+		if float {
+			return Token{Type: gotoken.FLOAT, Value: string(v)}
+		}
+		if v[0] == '0' {
+			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
+		}
+		return Token{Type: gotoken.INT, Value: string(v)}
 	}
 
 	if isLetter(s.Peek()) {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		for isLetter(s.Peek()) || isUnicodeDigit(s.Peek()) {
-			v += string(s.Next())
+			v = append(v, s.Next())
 		}
-		switch v {
-		// holang
-		case "enum":
-			return Token{Type: token.ENUM, Value: v}
-		case "match":
-			return Token{Type: token.MATCH, Value: v}
-		// golang
+		switch string(v) {
 		case "break":
-			return Token{Type: gotoken.BREAK, Value: v}
+			return Token{Type: gotoken.BREAK, Value: string(v)}
 		case "case":
-			return Token{Type: gotoken.CASE, Value: v}
+			return Token{Type: gotoken.CASE, Value: string(v)}
 		case "chan":
-			return Token{Type: gotoken.CHAN, Value: v}
+			return Token{Type: gotoken.CHAN, Value: string(v)}
 		case "const":
-			return Token{Type: gotoken.CONST, Value: v}
+			return Token{Type: gotoken.CONST, Value: string(v)}
 		case "continue":
-			return Token{Type: gotoken.CONTINUE, Value: v}
+			return Token{Type: gotoken.CONTINUE, Value: string(v)}
 		case "default":
-			return Token{Type: gotoken.DEFAULT, Value: v}
+			return Token{Type: gotoken.DEFAULT, Value: string(v)}
 		case "defer":
-			return Token{Type: gotoken.DEFER, Value: v}
+			return Token{Type: gotoken.DEFER, Value: string(v)}
 		case "else":
-			return Token{Type: gotoken.ELSE, Value: v}
+			return Token{Type: gotoken.ELSE, Value: string(v)}
+		case "enum":
+			return Token{Type: token.ENUM, Value: string(v)}
 		case "fallthrough":
-			return Token{Type: gotoken.FALLTHROUGH, Value: v}
+			return Token{Type: gotoken.FALLTHROUGH, Value: string(v)}
 		case "for":
-			return Token{Type: gotoken.FOR, Value: v}
+			return Token{Type: gotoken.FOR, Value: string(v)}
 		case "func":
-			return Token{Type: gotoken.FUNC, Value: v}
+			return Token{Type: gotoken.FUNC, Value: string(v)}
 		case "go":
-			return Token{Type: gotoken.GO, Value: v}
+			return Token{Type: gotoken.GO, Value: string(v)}
 		case "goto":
-			return Token{Type: gotoken.GOTO, Value: v}
+			return Token{Type: gotoken.GOTO, Value: string(v)}
 		case "if":
-			return Token{Type: gotoken.IF, Value: v}
+			return Token{Type: gotoken.IF, Value: string(v)}
 		case "import":
-			return Token{Type: gotoken.IMPORT, Value: v}
+			return Token{Type: gotoken.IMPORT, Value: string(v)}
 		case "interface":
-			return Token{Type: gotoken.INTERFACE, Value: v}
+			return Token{Type: gotoken.INTERFACE, Value: string(v)}
 		case "map":
-			return Token{Type: gotoken.MAP, Value: v}
+			return Token{Type: gotoken.MAP, Value: string(v)}
+		case "match":
+			return Token{Type: token.MATCH, Value: string(v)}
 		case "package":
-			return Token{Type: gotoken.PACKAGE, Value: v}
+			return Token{Type: gotoken.PACKAGE, Value: string(v)}
 		case "range":
-			return Token{Type: gotoken.RANGE, Value: v}
+			return Token{Type: gotoken.RANGE, Value: string(v)}
 		case "return":
-			return Token{Type: gotoken.RETURN, Value: v}
+			return Token{Type: gotoken.RETURN, Value: string(v)}
 		case "select":
-			return Token{Type: gotoken.SELECT, Value: v}
+			return Token{Type: gotoken.SELECT, Value: string(v)}
 		case "struct":
-			return Token{Type: gotoken.STRUCT, Value: v}
+			return Token{Type: gotoken.STRUCT, Value: string(v)}
 		case "switch":
-			return Token{Type: gotoken.SWITCH, Value: v}
+			return Token{Type: gotoken.SWITCH, Value: string(v)}
 		case "type":
-			return Token{Type: gotoken.TYPE, Value: v}
+			return Token{Type: gotoken.TYPE, Value: string(v)}
 		case "var":
-			return Token{Type: gotoken.VAR, Value: v}
+			return Token{Type: gotoken.VAR, Value: string(v)}
 		default:
-			return Token{Type: gotoken.IDENT, Value: v}
+			return Token{Type: gotoken.IDENT, Value: string(v)}
 		}
 	}
 
 	if s.Peek() == '\'' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '\\' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 		}
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '\'' {
-			v += string(s.Next())
-			return Token{Type: gotoken.CHAR, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.CHAR, Value: string(v)}
 		}
-		return Token{Type: gotoken.ILLEGAL, Value: v}
+		return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 	}
 
 	if s.Peek() == '"' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		escaped := false
 		for !isNewline(s.Peek()) {
 			cur := s.Next()
-			v += string(cur)
+			v = append(v, cur)
 			if escaped {
 				escaped = false
 			} else if cur == '\\' {
 				escaped = true
 			} else if cur == '"' {
-				return Token{Type: gotoken.STRING, Value: v}
+				return Token{Type: gotoken.STRING, Value: string(v)}
 			}
 		}
-		return Token{Type: gotoken.ILLEGAL, Value: v}
+		return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 	}
 
 	if s.Peek() == '`' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		escaped := false
 		for s.Peek() != scanner.EOF {
 			cur := s.Next()
-			v += string(cur)
+			v = append(v, cur)
 			if escaped {
 				escaped = false
 			} else if cur == '\\' {
 				escaped = true
 			} else if cur == '`' {
-				return Token{Type: gotoken.STRING, Value: v}
+				return Token{Type: gotoken.STRING, Value: string(v)}
 			}
 		}
-		return Token{Type: gotoken.ILLEGAL, Value: v}
+		return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 	}
 
 	if s.Peek() == '+' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.ADD_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.ADD_ASSIGN, Value: string(v)}
 		}
 		if s.Peek() == '+' {
-			v += string(s.Next())
-			return Token{Type: gotoken.INC, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.INC, Value: string(v)}
 		}
-		return Token{Type: gotoken.ADD, Value: v}
+		return Token{Type: gotoken.ADD, Value: string(v)}
 	}
 
 	if s.Peek() == '-' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.SUB_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.SUB_ASSIGN, Value: string(v)}
 		}
 		if s.Peek() == '-' {
-			v += string(s.Next())
-			return Token{Type: gotoken.DEC, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.DEC, Value: string(v)}
 		}
-		return Token{Type: gotoken.SUB, Value: v}
+		return Token{Type: gotoken.SUB, Value: string(v)}
 	}
 
 	if s.Peek() == '*' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.MUL_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.MUL_ASSIGN, Value: string(v)}
 		}
 		if s.Peek() == '*' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			if s.Peek() == '=' {
-				v += string(s.Next())
-				return Token{Type: token.POW_ASSIGN, Value: v}
+				v = append(v, s.Next())
+				return Token{Type: token.POW_ASSIGN, Value: string(v)}
 			}
-			return Token{Type: token.POW, Value: v}
+			return Token{Type: token.POW, Value: string(v)}
 		}
-		return Token{Type: gotoken.MUL, Value: v}
+		return Token{Type: gotoken.MUL, Value: string(v)}
 	}
 
 	if s.Peek() == '/' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '/' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			for !isNewline(s.Peek()) {
-				v += string(s.Next())
+				v = append(v, s.Next())
 			}
-			return Token{Type: gotoken.COMMENT, Value: v}
+			return Token{Type: gotoken.COMMENT, Value: string(v)}
 		}
 		if s.Peek() == '*' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			for s.Peek() != scanner.EOF {
 				cur := s.Next()
-				v += string(cur)
+				v = append(v, cur)
 				if cur == '*' && s.Peek() == '/' {
-					v += string(s.Next())
-					return Token{Type: gotoken.COMMENT, Value: v}
+					v = append(v, s.Next())
+					return Token{Type: gotoken.COMMENT, Value: string(v)}
 				}
 			}
-			return Token{Type: gotoken.ILLEGAL, Value: v}
+			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.QUO_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.QUO_ASSIGN, Value: string(v)}
 		}
-		return Token{Type: gotoken.QUO, Value: v}
+		return Token{Type: gotoken.QUO, Value: string(v)}
 	}
 
 	if s.Peek() == '%' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.REM_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.REM_ASSIGN, Value: string(v)}
 		}
-		return Token{Type: gotoken.REM, Value: v}
+		return Token{Type: gotoken.REM, Value: string(v)}
 	}
 
 	if s.Peek() == '&' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '^' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			if s.Peek() == '=' {
-				v += string(s.Next())
-				return Token{Type: gotoken.AND_NOT_ASSIGN, Value: v}
+				v = append(v, s.Next())
+				return Token{Type: gotoken.AND_NOT_ASSIGN, Value: string(v)}
 			}
-			return Token{Type: gotoken.AND_NOT, Value: v}
+			return Token{Type: gotoken.AND_NOT, Value: string(v)}
 		}
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.AND_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.AND_ASSIGN, Value: string(v)}
 		}
 		if s.Peek() == '&' {
-			v += string(s.Next())
-			return Token{Type: gotoken.LAND, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.LAND, Value: string(v)}
 		}
-		return Token{Type: gotoken.AND, Value: v}
+		return Token{Type: gotoken.AND, Value: string(v)}
 	}
 
 	if s.Peek() == '|' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.OR_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.OR_ASSIGN, Value: string(v)}
 		}
 		if s.Peek() == '|' {
-			v += string(s.Next())
-			return Token{Type: gotoken.LOR, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.LOR, Value: string(v)}
 		}
-		return Token{Type: gotoken.OR, Value: v}
+		return Token{Type: gotoken.OR, Value: string(v)}
 	}
 
 	if s.Peek() == '^' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.XOR_ASSIGN, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.XOR_ASSIGN, Value: string(v)}
 		}
-		return Token{Type: gotoken.XOR, Value: v}
+		return Token{Type: gotoken.XOR, Value: string(v)}
 	}
 
 	if s.Peek() == '<' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '<' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			if s.Peek() == '=' {
-				v += string(s.Next())
-				return Token{Type: gotoken.SHL_ASSIGN, Value: v}
+				v = append(v, s.Next())
+				return Token{Type: gotoken.SHL_ASSIGN, Value: string(v)}
 			}
-			return Token{Type: gotoken.SHL, Value: v}
+			return Token{Type: gotoken.SHL, Value: string(v)}
 		}
 		if s.Peek() == '-' {
-			v += string(s.Next())
-			return Token{Type: gotoken.ARROW, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.ARROW, Value: string(v)}
 		}
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.LEQ, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.LEQ, Value: string(v)}
 		}
-		return Token{Type: gotoken.LSS, Value: v}
+		return Token{Type: gotoken.LSS, Value: string(v)}
 	}
 
 	if s.Peek() == '>' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '>' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			if s.Peek() == '=' {
-				v += string(s.Next())
-				return Token{Type: gotoken.SHR_ASSIGN, Value: v}
+				v = append(v, s.Next())
+				return Token{Type: gotoken.SHR_ASSIGN, Value: string(v)}
 			}
-			return Token{Type: gotoken.SHR, Value: v}
+			return Token{Type: gotoken.SHR, Value: string(v)}
 		}
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.GEQ, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.GEQ, Value: string(v)}
 		}
-		return Token{Type: gotoken.GTR, Value: v}
+		return Token{Type: gotoken.GTR, Value: string(v)}
 	}
 
 	if s.Peek() == '=' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.EQL, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.EQL, Value: string(v)}
 		}
-		return Token{Type: gotoken.ASSIGN, Value: v}
+		return Token{Type: gotoken.ASSIGN, Value: string(v)}
 	}
 
 	if s.Peek() == '!' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.NEQ, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.NEQ, Value: string(v)}
 		}
-		return Token{Type: gotoken.NOT, Value: v}
+		return Token{Type: gotoken.NOT, Value: string(v)}
 	}
 
 	if s.Peek() == ':' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '=' {
-			v += string(s.Next())
-			return Token{Type: gotoken.DEFINE, Value: v}
+			v = append(v, s.Next())
+			return Token{Type: gotoken.DEFINE, Value: string(v)}
 		}
-		return Token{Type: gotoken.COLON, Value: v}
+		return Token{Type: gotoken.COLON, Value: string(v)}
 	}
 
 	if s.Peek() == '.' {
-		v += string(s.Next())
+		v = append(v, s.Next())
 		if s.Peek() == '.' {
-			v += string(s.Next())
+			v = append(v, s.Next())
 			if s.Peek() == '.' {
-				v += string(s.Next())
-				return Token{Type: gotoken.ELLIPSIS, Value: v}
+				v = append(v, s.Next())
+				return Token{Type: gotoken.ELLIPSIS, Value: string(v)}
 			}
-			return Token{Type: gotoken.ILLEGAL, Value: v}
+			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
-		return Token{Type: gotoken.PERIOD, Value: v}
+		return Token{Type: gotoken.PERIOD, Value: string(v)}
 	}
 
 	if s.Peek() == '(' {
-		v += string(s.Next())
-		return Token{Type: gotoken.LPAREN, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.LPAREN, Value: string(v)}
 	}
 
 	if s.Peek() == ')' {
-		v += string(s.Next())
-		return Token{Type: gotoken.RPAREN, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.RPAREN, Value: string(v)}
 	}
 
 	if s.Peek() == '[' {
-		v += string(s.Next())
-		return Token{Type: gotoken.LBRACK, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.LBRACK, Value: string(v)}
 	}
 
 	if s.Peek() == ']' {
-		v += string(s.Next())
-		return Token{Type: gotoken.RBRACK, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.RBRACK, Value: string(v)}
 	}
 
 	if s.Peek() == '{' {
-		v += string(s.Next())
-		return Token{Type: gotoken.LBRACE, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.LBRACE, Value: string(v)}
 	}
 
 	if s.Peek() == '}' {
-		v += string(s.Next())
-		return Token{Type: gotoken.RBRACE, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.RBRACE, Value: string(v)}
 	}
 
 	if s.Peek() == ',' {
-		v += string(s.Next())
-		return Token{Type: gotoken.COMMA, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.COMMA, Value: string(v)}
 	}
 
 	if s.Peek() == ';' {
-		v += string(s.Next())
-		return Token{Type: gotoken.SEMICOLON, Value: v}
+		v = append(v, s.Next())
+		return Token{Type: gotoken.SEMICOLON, Value: string(v)}
 	}
 
-	v += string(s.Next())
-	return Token{Type: gotoken.ILLEGAL, Value: v}
+	v = append(v, s.Next())
+	return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 }
 
 func isFloat(s string) bool {
@@ -678,4 +727,8 @@ func isNewline(r rune) bool {
 
 func isWhitespace(r rune) bool {
 	return r == ' ' || r == '\t'
+}
+
+func isDigitSeparator(r rune) bool {
+	return r == '_'
 }

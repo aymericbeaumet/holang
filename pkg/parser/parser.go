@@ -11,21 +11,21 @@ import (
 
 // https://golang.org/ref/spec#Source_file_organization
 func ParseFile(tokens []lexer.Token, i int) (goast.File, int, error) {
-	i = consumeComments(tokens, i)
+	i = discardComments(tokens, i)
 
 	// https://golang.org/ref/spec#Package_clause
 
-	i, _, err := consume(tokens, i, gotokens.PACKAGE)
+	_, i, err := consume(tokens, i, gotokens.PACKAGE)
 	if err != nil {
 		return goast.File{}, 0, err
 	}
 
-	i, ident, err := consume(tokens, i, gotokens.IDENT)
+	ident, i, err := consume(tokens, i, gotokens.IDENT)
 	if err != nil {
 		return goast.File{}, 0, err
 	}
 
-	i, _, err = consume(tokens, i, gotokens.SEMICOLON)
+	_, i, err = consume(tokens, i, gotokens.SEMICOLON)
 	if err != nil {
 		return goast.File{}, 0, err
 	}
@@ -47,18 +47,26 @@ func ParseFile(tokens []lexer.Token, i int) (goast.File, int, error) {
 	}, i, nil
 }
 
-func consume(tokens []lexer.Token, i int, _type gotokens.Token) (int, lexer.Token, error) {
+func try(tokens []lexer.Token, i int, _type gotokens.Token) (lexer.Token, int, error) {
 	if i >= len(tokens) {
-		return 0, lexer.Token{}, errors.New("Reached end of file")
+		return lexer.Token{}, 0, errors.New("Reached end of file")
 	}
 	token := tokens[i]
 	if token.Type != _type {
-		return 0, lexer.Token{}, fmt.Errorf("Expected %s token, but got %s at: %+v", _type, token.Type, token)
+		return lexer.Token{}, 0, fmt.Errorf("Expected %s token, but got %s at: %+v", _type, token.Type, token)
 	}
-	return i + 1, token, nil
+	return token, i, nil
 }
 
-func consumeComments(tokens []lexer.Token, i int) int {
+func consume(tokens []lexer.Token, i int, _type gotokens.Token) (lexer.Token, int, error) {
+	token, i, err := try(tokens, i, _type)
+	if err != nil {
+		return lexer.Token{}, 0, err
+	}
+	return token, i + 1, nil
+}
+
+func discardComments(tokens []lexer.Token, i int) int {
 	for i < len(tokens) && tokens[i].Type == gotokens.COMMENT {
 		i++
 	}

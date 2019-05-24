@@ -25,7 +25,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	file, err := parser.ParseFile(tokens, 0)
+	file, _, err := parser.ParseFile(tokens, 0)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"holang/pkg/lexer"
 )
 
@@ -18,6 +20,9 @@ func main() {
 		panic(err)
 	}
 
-	tokens := lexer.Tokenize(reader, filepath)
-	log.Printf("%+v", tokens)
+	tokens, err := lexer.Tokenize(reader, filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	spew.Dump(tokens)
 }

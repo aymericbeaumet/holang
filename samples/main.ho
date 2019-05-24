@@ -1,0 +1,69 @@
+/*
+ * This is a sample file to show the possibilities of the language.
+ */
+
+package sample
+
+import (
+	"log"
+)
+
+type Colors enum {
+	Red,
+	Green,
+	Blue
+}
+
+type Result enum<T, E> {
+	Ok(T),
+	Error(E)
+}
+
+func main() {
+	x := 'a'
+	x := '\n'
+	x := '\\'
+	x := '\''
+
+	x := "ab\"\n"
+
+	x := `
+		- Multiline string with backtick escape support!
+		- \`Really?\`
+		- Yes :)
+	`
+
+	colors := {
+		"gold": {
+			255,
+			215,
+			0
+		}
+	}
+
+	x := 1 + 2 - 3 * 4 / 5 % 6 ** 7
+
+	// Base 10
+	x := 1_2_3_4_5_6
+
+	// Floating
+	x := 1_2_3.4_5_6
+	x := 0_7_2.4_0
+	x := 6.6_7_4_2_8e-11
+
+	// Imaginary
+	x := 1_2_3_4_5_6_i
+	x := 123.456i
+	x := 072.40i
+	x := 6.6_7_4_2_8e-11i
+
+	// Base 2
+	x := 0b1_0_1_0_1_0
+
+	// Base 8
+	x := 01_2_3_4_5_6 // legacy
+	x := 0o1_2_3_4_5_6
+
+	// Base 16
+	x := 0x1_2_3_4_5_6
+}

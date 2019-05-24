@@ -1,9 +1,9 @@
 package lexer
 
 import (
+	"fmt"
 	gotoken "go/token"
 	"io"
-	"log"
 	"text/scanner"
 	"unicode"
 
@@ -16,7 +16,7 @@ type Token struct {
 	Value    string
 }
 
-func Tokenize(reader io.Reader, filepath string) []Token {
+func Tokenize(reader io.Reader, filepath string) ([]Token, error) {
 	tokens := []Token{}
 
 	s := scanner.Scanner{}
@@ -26,13 +26,12 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 	for {
 		t := readToken(&s)
 		switch t.Type {
-		case gotoken.EOF:
-			return tokens
-		case gotoken.ILLEGAL:
-			log.Println("warning: ", t)
-			continue
 		default:
 			tokens = append(tokens, t)
+		case gotoken.ILLEGAL:
+			return tokens, fmt.Errorf("%+v", t)
+		case gotoken.EOF:
+			return tokens, nil
 		}
 	}
 }
@@ -40,11 +39,173 @@ func Tokenize(reader io.Reader, filepath string) []Token {
 func readToken(s *scanner.Scanner) Token {
 	v := ""
 
-	if s.Peek() == scanner.EOF {
-		return Token{Type: gotoken.EOF, Value: v}
+	for isWhitespace(s.Peek()) || isNewline(s.Peek()) {
+		s.Next()
 	}
 
-	// TODO: literals
+	if s.Peek() == scanner.EOF {
+		return Token{Type: gotoken.EOF}
+	}
+
+	// TODO: decimal, floating, imaginary
+
+	if s.Peek() == '0' {
+		v += string(s.Next())
+		if s.Peek() == 'b' {
+			v += string(s.Next())
+			if isBinaryDigit(s.Peek()) {
+				v += string(s.Next())
+				for isBinaryDigit(s.Peek()) || s.Peek() == '_' {
+					v += string(s.Next())
+				}
+				return Token{Type: gotoken.INT, Value: v}
+			}
+			return Token{Type: gotoken.ILLEGAL, Value: v}
+		}
+		if isOctalDigit(s.Peek()) {
+			v += string(s.Next())
+			for isOctalDigit(s.Peek()) || s.Peek() == '_' {
+				v += string(s.Next())
+			}
+			return Token{Type: gotoken.INT, Value: v}
+		}
+		if s.Peek() == 'o' {
+			v += string(s.Next())
+			if isOctalDigit(s.Peek()) {
+				v += string(s.Next())
+				for isOctalDigit(s.Peek()) || s.Peek() == '_' {
+					v += string(s.Next())
+				}
+				return Token{Type: gotoken.INT, Value: v}
+			}
+			return Token{Type: gotoken.ILLEGAL, Value: v}
+		}
+		if s.Peek() == 'x' {
+			v += string(s.Next())
+			if isHexDigit(s.Peek()) {
+				v += string(s.Next())
+				for isHexDigit(s.Peek()) || s.Peek() == '_' {
+					v += string(s.Next())
+				}
+				return Token{Type: gotoken.INT, Value: v}
+			}
+			return Token{Type: gotoken.ILLEGAL, Value: v}
+		}
+	}
+
+	if isLetter(s.Peek()) {
+		v += string(s.Next())
+		for isLetter(s.Peek()) || isUnicodeDigit(s.Peek()) {
+			v += string(s.Next())
+		}
+		switch v {
+		// holang
+		case "enum":
+			return Token{Type: token.ENUM, Value: v}
+		case "match":
+			return Token{Type: token.MATCH, Value: v}
+		// golang
+		case "break":
+			return Token{Type: gotoken.BREAK, Value: v}
+		case "case":
+			return Token{Type: gotoken.CASE, Value: v}
+		case "chan":
+			return Token{Type: gotoken.CHAN, Value: v}
+		case "const":
+			return Token{Type: gotoken.CONST, Value: v}
+		case "continue":
+			return Token{Type: gotoken.CONTINUE, Value: v}
+		case "default":
+			return Token{Type: gotoken.DEFAULT, Value: v}
+		case "defer":
+			return Token{Type: gotoken.DEFER, Value: v}
+		case "else":
+			return Token{Type: gotoken.ELSE, Value: v}
+		case "fallthrough":
+			return Token{Type: gotoken.FALLTHROUGH, Value: v}
+		case "for":
+			return Token{Type: gotoken.FOR, Value: v}
+		case "func":
+			return Token{Type: gotoken.FUNC, Value: v}
+		case "go":
+			return Token{Type: gotoken.GO, Value: v}
+		case "goto":
+			return Token{Type: gotoken.GOTO, Value: v}
+		case "if":
+			return Token{Type: gotoken.IF, Value: v}
+		case "import":
+			return Token{Type: gotoken.IMPORT, Value: v}
+		case "interface":
+			return Token{Type: gotoken.INTERFACE, Value: v}
+		case "map":
+			return Token{Type: gotoken.MAP, Value: v}
+		case "package":
+			return Token{Type: gotoken.PACKAGE, Value: v}
+		case "range":
+			return Token{Type: gotoken.RANGE, Value: v}
+		case "return":
+			return Token{Type: gotoken.RETURN, Value: v}
+		case "select":
+			return Token{Type: gotoken.SELECT, Value: v}
+		case "struct":
+			return Token{Type: gotoken.STRUCT, Value: v}
+		case "switch":
+			return Token{Type: gotoken.SWITCH, Value: v}
+		case "type":
+			return Token{Type: gotoken.TYPE, Value: v}
+		case "var":
+			return Token{Type: gotoken.VAR, Value: v}
+		default:
+			return Token{Type: gotoken.IDENT, Value: v}
+		}
+	}
+
+	if s.Peek() == '\'' {
+		v += string(s.Next())
+		if s.Peek() == '\\' {
+			v += string(s.Next())
+		}
+		v += string(s.Next())
+		if s.Peek() == '\'' {
+			v += string(s.Next())
+			return Token{Type: gotoken.CHAR, Value: v}
+		}
+		return Token{Type: gotoken.ILLEGAL, Value: v}
+	}
+
+	if s.Peek() == '"' {
+		v += string(s.Next())
+		escaped := false
+		for !isNewline(s.Peek()) {
+			cur := s.Next()
+			v += string(cur)
+			if escaped {
+				escaped = false
+			} else if cur == '\\' {
+				escaped = true
+			} else if cur == '"' {
+				return Token{Type: gotoken.STRING, Value: v}
+			}
+		}
+		return Token{Type: gotoken.ILLEGAL, Value: v}
+	}
+
+	if s.Peek() == '`' {
+		v += string(s.Next())
+		escaped := false
+		for s.Peek() != scanner.EOF {
+			cur := s.Next()
+			v += string(cur)
+			if escaped {
+				escaped = false
+			} else if cur == '\\' {
+				escaped = true
+			} else if cur == '`' {
+				return Token{Type: gotoken.STRING, Value: v}
+			}
+		}
+		return Token{Type: gotoken.ILLEGAL, Value: v}
+	}
 
 	if s.Peek() == '+' {
 		v += string(s.Next())
@@ -91,6 +252,25 @@ func readToken(s *scanner.Scanner) Token {
 
 	if s.Peek() == '/' {
 		v += string(s.Next())
+		if s.Peek() == '/' {
+			v += string(s.Next())
+			for !isNewline(s.Peek()) {
+				v += string(s.Next())
+			}
+			return Token{Type: gotoken.COMMENT, Value: v}
+		}
+		if s.Peek() == '*' {
+			v += string(s.Next())
+			for s.Peek() != scanner.EOF {
+				cur := s.Next()
+				v += string(cur)
+				if cur == '*' && s.Peek() == '/' {
+					v += string(s.Next())
+					return Token{Type: gotoken.COMMENT, Value: v}
+				}
+			}
+			return Token{Type: gotoken.ILLEGAL, Value: v}
+		}
 		if s.Peek() == '=' {
 			v += string(s.Next())
 			return Token{Type: gotoken.QUO_ASSIGN, Value: v}
@@ -267,8 +447,6 @@ func readToken(s *scanner.Scanner) Token {
 		v += string(s.Next())
 		return Token{Type: gotoken.SEMICOLON, Value: v}
 	}
-
-	// TODO: keywords
 
 	v += string(s.Next())
 	return Token{Type: gotoken.ILLEGAL, Value: v}
@@ -496,4 +674,8 @@ func isUnicodeLetter(r rune) bool {
 
 func isNewline(r rune) bool {
 	return r == '\n'
+}
+
+func isWhitespace(r rune) bool {
+	return r == ' ' || r == '\t'
 }

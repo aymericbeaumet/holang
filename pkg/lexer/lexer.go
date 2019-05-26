@@ -16,6 +16,10 @@ type Token struct {
 	Value    string
 }
 
+func (t *Token) IsBlankIdentifier() bool {
+	return t.Type == gotoken.IDENT && t.Value == "_"
+}
+
 func Tokenize(reader io.Reader, filepath string) ([]Token, error) {
 	tokens := []Token{}
 

@@ -4,34 +4,46 @@ import (
 	"errors"
 	"fmt"
 	goast "go/ast"
-	gotokens "go/token"
+	gotoken "go/token"
 
 	"holang/pkg/lexer"
 )
 
+type Parser struct {
+	tokens []lexer.Token
+	index  int
+}
+
+func NewParser(tokens []lexer.Token) Parser {
+	return Parser{
+		tokens: tokens,
+		index:  0,
+	}
+}
+
 // https://golang.org/ref/spec#Source_file_organization
-func ParseFile(tokens []lexer.Token, i int) (goast.File, int, error) {
-	i = consumeComments(tokens, i)
+func (p *Parser) ParseFile() (goast.File, error) {
+	p.eatComments()
 
 	// https://golang.org/ref/spec#Package_clause
 
-	_, i, err := consume(tokens, i, gotokens.PACKAGE)
+	_, err := p.eat(gotoken.PACKAGE)
 	if err != nil {
-		return goast.File{}, 0, err
+		return goast.File{}, err
 	}
 
-	ident, i, err := consume(tokens, i, gotokens.IDENT)
+	ident, err := p.eat(gotoken.IDENT)
 	if err != nil {
-		return goast.File{}, 0, err
+		return goast.File{}, err
 	}
 
-	if isBlankIdentifier(ident) {
-		return goast.File{}, 0, errors.New("The package name must not be the blank identifier")
+	if ident.IsBlankIdentifier() {
+		return goast.File{}, errors.New("The package name must not be the blank identifier")
 	}
 
-	_, i, err = consume(tokens, i, gotokens.SEMICOLON)
+	_, err = p.eat(gotoken.SEMICOLON)
 	if err != nil {
-		return goast.File{}, 0, err
+		return goast.File{}, err
 	}
 
 	// https://golang.org/ref/spec#Import_declarations
@@ -48,27 +60,35 @@ func ParseFile(tokens []lexer.Token, i int) (goast.File, int, error) {
 		},
 		Decls:   decls,
 		Imports: imports,
-	}, i, nil
+	}, nil
 }
 
-func consume(tokens []lexer.Token, i int, _type gotokens.Token) (lexer.Token, int, error) {
-	if i >= len(tokens) {
-		return lexer.Token{}, 0, errors.New("Reached end of file")
+func (p *Parser) eatComments() ([]lexer.Token, error) {
+	comments := []lexer.Token{}
+	for {
+		comment, err := p.eat(gotoken.COMMENT)
+		if err != nil {
+			return comments, nil
+		}
+		comments = append(comments, comment)
 	}
-	token := tokens[i]
+}
+
+func (p *Parser) eat(_type gotoken.Token) (lexer.Token, error) {
+	token, err := p.currentToken()
+	if err != nil {
+		return lexer.Token{}, err
+	}
 	if token.Type != _type {
-		return lexer.Token{}, 0, fmt.Errorf("Expected %s token, but got %s at: %+v", _type, token.Type, token)
+		return lexer.Token{}, fmt.Errorf("Expected %s token, but got %s at: %+v", _type, token.Type, token)
 	}
-	return token, i + 1, nil
+	p.index++
+	return token, nil
 }
 
-func consumeComments(tokens []lexer.Token, i int) int {
-	for i < len(tokens) && tokens[i].Type == gotokens.COMMENT {
-		i++
+func (p *Parser) currentToken() (lexer.Token, error) {
+	if p.index >= len(p.tokens) {
+		return lexer.Token{}, errors.New("Reached end of file")
 	}
-	return i
-}
-
-func isBlankIdentifier(t lexer.Token) bool {
-	return t.Value == "_"
+	return p.tokens[p.index], nil
 }

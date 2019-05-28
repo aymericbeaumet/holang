@@ -146,6 +146,15 @@ func (p *Parser) eatPackageClause() (goast.Ident, error) {
 	return goast.Ident{Name: ident.Value}, nil
 }
 
+func (p *Parser) eatPackageName() (lexer.Token, error) {
+	ident, err := p.tryPackageName()
+	if err != nil {
+		return lexer.Token{}, err
+	}
+	p.next()
+	return ident, nil
+}
+
 func (p *Parser) tryPackageName() (lexer.Token, error) {
 	ident, err := p.try(gotoken.IDENT)
 	if err != nil {
@@ -154,15 +163,6 @@ func (p *Parser) tryPackageName() (lexer.Token, error) {
 	if ident.IsBlankIdentifier() {
 		return lexer.Token{}, errors.New("The package name must not be the blank identifier")
 	}
-	return ident, nil
-}
-
-func (p *Parser) eatPackageName() (lexer.Token, error) {
-	ident, err := p.tryPackageName()
-	if err != nil {
-		return lexer.Token{}, err
-	}
-	p.next()
 	return ident, nil
 }
 
@@ -187,11 +187,14 @@ func (p *Parser) try(_type gotoken.Token) (lexer.Token, error) {
 }
 
 func (p *Parser) next() {
+	if p.index > len(p.tokens) {
+		panic("Implementation error: should not be able to go beyond the size of the tokens list")
+	}
 	p.index++
 }
 
 func (p *Parser) currentToken() (lexer.Token, error) {
-	if p.index >= len(p.tokens) {
+	if p.index == len(p.tokens) {
 		return lexer.Token{}, errors.New("Reached end of file")
 	}
 	return p.tokens[p.index], nil

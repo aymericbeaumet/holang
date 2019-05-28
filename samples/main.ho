@@ -4,8 +4,12 @@
 
 package sample
 
+import   "lib/math"
+import m "lib/math"
+import . "lib/math"
+import _ "lib/math"
 import (
-	"log"
+	"lib/math"
 )
 
 type Colors enum {

@@ -88,10 +88,9 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 	}
 
 	if isDecimalDigit(s.Peek()) || s.Peek() == '.' {
-		cur := s.Next()
-		v = append(v, cur)
+		v = append(v, s.Next())
 		// Binary notation 0b...
-		if cur == '0' && (s.Peek() == 'B' || s.Peek() == 'b') {
+		if v[0] == '0' && (s.Peek() == 'B' || s.Peek() == 'b') {
 			v = append(v, s.Next())
 			if isBinaryDigit(s.Peek()) {
 				v = append(v, s.Next())
@@ -103,7 +102,7 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
 		// Octal notation 0o...
-		if cur == '0' && (s.Peek() == 'O' || s.Peek() == 'o') {
+		if v[0] == '0' && (s.Peek() == 'O' || s.Peek() == 'o') {
 			v = append(v, s.Next())
 			if isOctalDigit(s.Peek()) {
 				v = append(v, s.Next())
@@ -115,7 +114,7 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
 		// Hexadecimal notation 0x...
-		if cur == '0' && (s.Peek() == 'X' || s.Peek() == 'x') {
+		if v[0] == '0' && (s.Peek() == 'X' || s.Peek() == 'x') {
 			v = append(v, s.Next())
 			if isHexDigit(s.Peek()) {
 				v = append(v, s.Next())
@@ -127,7 +126,7 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 		}
 		// Alternative octal notation 0...
-		if cur == '0' {
+		if v[0] == '0' {
 			if isOctalDigit(s.Peek()) {
 				v = append(v, s.Next())
 				for isOctalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
@@ -139,7 +138,7 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 			}
 			// fallthrough
 		}
-		// Decimals, Floating-point, Imaginary
+		// Dealing with decimals, floating-point and imaginary numbers
 		float := false
 		if isDecimalDigit(v[0]) {
 			for isDecimalDigit(s.Peek()) || isDigitSeparator(s.Peek()) {
@@ -174,6 +173,17 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 		if s.Peek() == 'i' {
 			v = append(v, s.Next())
 			return Token{Type: gotoken.IMAG, Value: string(v)}
+		}
+		if v[0] == '.' {
+			if s.Peek() == '.' {
+				v = append(v, s.Next())
+				if s.Peek() == '.' {
+					v = append(v, s.Next())
+					return Token{Type: gotoken.ELLIPSIS, Value: string(v)}
+				}
+				return Token{Type: gotoken.ILLEGAL, Value: string(v)}
+			}
+			return Token{Type: gotoken.PERIOD, Value: string(v)}
 		}
 		if float {
 			return Token{Type: gotoken.FLOAT, Value: string(v)}
@@ -482,19 +492,6 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 			return Token{Type: gotoken.DEFINE, Value: string(v)}
 		}
 		return Token{Type: gotoken.COLON, Value: string(v)}
-	}
-
-	if s.Peek() == '.' {
-		v = append(v, s.Next())
-		if s.Peek() == '.' {
-			v = append(v, s.Next())
-			if s.Peek() == '.' {
-				v = append(v, s.Next())
-				return Token{Type: gotoken.ELLIPSIS, Value: string(v)}
-			}
-			return Token{Type: gotoken.ILLEGAL, Value: string(v)}
-		}
-		return Token{Type: gotoken.PERIOD, Value: string(v)}
 	}
 
 	if s.Peek() == '(' {

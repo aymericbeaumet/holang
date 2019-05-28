@@ -108,12 +108,16 @@ func (p *Parser) eatImportDecl() ([]*goast.ImportSpec, error) {
 
 func (p *Parser) eatImportSpec() (*goast.ImportSpec, error) {
 	spec := goast.ImportSpec{}
-	if name, err := p.try(gotoken.STRING); err == nil && name.Value == "." {
+	if name, err := p.eat(gotoken.PERIOD); err == nil {
+		spec.Name = &goast.Ident{Name: name.Value}
+	} else if name, err := p.try(gotoken.IDENT); err == nil && name.IsBlankIdentifier() {
 		p.next()
 		spec.Name = &goast.Ident{Name: name.Value}
 	} else if packageName, err := p.tryPackageName(); err == nil {
 		p.next()
 		spec.Name = &goast.Ident{Name: packageName.Value}
+	} else {
+		spec.Name = nil
 	}
 	path, err := p.eatImportPath()
 	if err != nil {

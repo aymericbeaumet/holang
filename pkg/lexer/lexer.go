@@ -538,14 +538,6 @@ func readToken(s *scanner.Scanner, asi bool) Token {
 	return Token{Type: gotoken.ILLEGAL, Value: string(v)}
 }
 
-func isFloat(s string) bool {
-	return false
-}
-
-func isImag(s string) bool {
-	return false
-}
-
 func isIdent(s string) bool {
 	for i, r := range s {
 		switch i {
@@ -559,170 +551,6 @@ func isIdent(s string) bool {
 			}
 		}
 	}
-	return true
-}
-
-func isIntLit(s string) bool {
-	return isBinaryLit(s) || isOctalLit(s) || isDecimalLit(s) || isHexLit(s)
-}
-
-func isBinaryLit(s string) bool {
-	valid := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r == '0') {
-				return false
-			}
-		case 1:
-			if !(r == 'b' || r == 'B') {
-				return false
-			}
-		default:
-			if !isBinaryDigit(r) {
-				return false
-			}
-			valid = true
-		}
-	}
-	return valid
-}
-
-func isOctalLit(s string) bool {
-	valid := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r == '0') {
-				return false
-			}
-			valid = true
-		default:
-			if !isOctalDigit(r) {
-				return false
-			}
-		}
-	}
-	return valid
-}
-
-func isDecimalLit(s string) bool {
-	valid := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r >= '1' && r <= '9') {
-				return false
-			}
-			valid = true
-		default:
-			if !isDecimalDigit(r) {
-				return false
-			}
-		}
-	}
-	return valid
-}
-
-func isHexLit(s string) bool {
-	valid := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r == '0') {
-				return false
-			}
-		case 1:
-			if !(r == 'x' || r == 'X') {
-				return false
-			}
-		default:
-			if !isOctalDigit(r) {
-				return false
-			}
-			valid = true
-		}
-	}
-	return valid
-}
-
-func isStringLit(s string) bool {
-	return isRawStringLit(s) || isInterpretedStringLit(s)
-}
-
-func isRawStringLit(s string) bool {
-	terminated := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r == '`') {
-				return false
-			}
-		default:
-			if r == '`' {
-				if terminated {
-					return false
-				}
-				terminated = true
-			} else if !(isUnicodeChar(r) || isNewline(r)) {
-				return false
-			}
-		}
-	}
-	return terminated
-}
-
-func isInterpretedStringLit(s string) bool {
-	terminated := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r == '"') {
-				return false
-			}
-		default:
-			if r == '"' {
-				if terminated {
-					return false
-				}
-				terminated = true
-			} else if !(isUnicodeValue(r) || isByteValue(r)) {
-				return false
-			}
-		}
-	}
-	return terminated
-}
-
-func isRuneLit(s string) bool {
-	terminated := false
-	for i, r := range s {
-		switch i {
-		case 0:
-			if !(r == '\'') {
-				return false
-			}
-		default:
-			if r == '\'' {
-				if terminated {
-					return false
-				}
-				terminated = true
-			} else if !(isUnicodeValue(r) || isByteValue(r)) {
-				return false
-			}
-		}
-	}
-	return terminated
-}
-
-// TODO
-func isUnicodeValue(r rune) bool {
-	return true
-}
-
-// TODO
-func isByteValue(r rune) bool {
 	return true
 }
 
@@ -744,10 +572,6 @@ func isDecimalDigit(r rune) bool {
 
 func isHexDigit(r rune) bool {
 	return isDecimalDigit(r) || (r >= 'A' && r <= 'F') || (r >= 'a' && r <= 'f')
-}
-
-func isUnicodeChar(r rune) bool {
-	return !isNewline(r)
 }
 
 func isUnicodeDigit(r rune) bool {
